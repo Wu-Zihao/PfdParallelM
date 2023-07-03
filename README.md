@@ -29,8 +29,8 @@ to begin a pfd task, where x is a list or a matrix, whose entries are fractions 
 ```
 Preparation finished. To get the result, do the following:
 1. Run the following command in a terminal:
-somePath/run.sh | sh
-2. Wait until the above computation finished.
+somePath/run.sh
+2. Wait until the above computation finished. Then, click "x" to close the monitor.
 3. Run the following commad here (in Mathematica UI):
 yourResult=PfdParallelReadOutput["some path","matrix",{47,108}];
 ```

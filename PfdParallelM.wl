@@ -10,7 +10,7 @@ Print["To show the readme text, run PfdParallelMHelp[]"]
 
 
 PfdParallelMHelp[]:=Module[{userGuide},
-	userGuide=Get[PfdParallelM`packagePath<>"/README.md"];
+	userGuide=Import[PfdParallelM`packagePath<>"/README.md"];
 	Print[userGuide]
 ]
 
