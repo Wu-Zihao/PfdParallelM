@@ -5,21 +5,12 @@ PfdParallelM`workingPath=$Failed
 PfdParallelM`Initialized=False
 
 
-Print["PfdParallelM: This is an interface to use pfd-parallel in mathematica automatically."]
-Print["For more information, run PfdParallelMHelp[]."]
+Print["Package PfdParallelM loaded."]
+Print["To show the readme text, run PfdParallelMHelp[]"]
 
 
 PfdParallelMHelp[]:=Module[{userGuide},
-	userGuide=
-	"PfdParallelHelp: Run PfdParallelMHelp[arg] for infomation:
-arg=\"use\": How to use this package.
-	";
-	
-	userGuide=
-	"First, run CreatePfdParallelMWorkingFolder[\"some folder\"] to create a temporary working folder;
-Then, run SetPfdParallelPackagePath to tell this interface where pfd-parallel is. e.g. SetPfdParallelPackagePath[\"~/packages/pfd-parallel/\"]
-After that, use PfdParallel[x] to pfd a list or a matrix x.
-	";
+	userGuide=Get[PfdParallelM`packagePath<>"/README.md"];
 	Print[userGuide]
 ]
 
@@ -328,8 +319,8 @@ PfdParallelPrepareInput[input_,OptionsPattern[]]:=Module[
 	Run["mkdir -p "<>workingFolder<>"/outputs/"];
 	Run["chmod +x "<>workingFolder<>"/run.sh"];
 	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
-	reportString="--------------------------------------
-Preparation finished. To get the result, do the following:
+	Print["--------------------------------------"];
+	reportString="Preparation finished. To get the result, do the following:
 1. Run the following command in a terminal:\n"<>
 workingFolder<>"/run.sh\n"<>
 "2. Wait until the above computation finished. Then, click \"x\" to close the monitor.
