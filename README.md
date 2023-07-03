@@ -32,7 +32,7 @@ Preparation finished. To get the result, do the following:
 somePath/run.sh
 2. Wait until the above computation finished. Then, click "x" to close the monitor.
 3. Run the following commad here (in Mathematica UI):
-yourResult=PfdParallelReadOutput["some path","matrix",{47,108}];
+yourResultName=PfdParallelReadOutput["some path","matrix",{47,108}];
 ```
 
 
