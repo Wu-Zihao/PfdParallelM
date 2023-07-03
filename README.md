@@ -16,8 +16,7 @@ CreatePfdParallelMWorkingFolder[" some folder "] to \
 ```
 The folder can be a folder that already exists.
 
-3. 
-Tell PfdParallelM where pfd-parallel is, run
+3. Tell PfdParallelM where pfd-parallel is, run
 ```
 SetPfdParallelPackagePath["somePath/pfd-parallel/"]
 ```
