@@ -215,7 +215,43 @@ pfdconfig.options.outputformat = \"OUTPUTFORMAT\";
 pfdconfig.options.outputdir = \"outputs\";
 ring r=0,VARS,rp;
 list listofentries = LISTOFENTIRES;
-parallel_pfd( listofentries, gspcconfig, pfdconfig);"
+parallel_pfd( listofentries, gspcconfig, pfdconfig);
+exit;
+"
+
+
+
+
+
+ScriptRunNoMonitor="cd PFDPARALLELPATH
+export software_ROOT=`pwd`
+. $software_ROOT/spack/share/spack/setup-env.sh
+spack load pfd-parallel
+cd PFDPARALLELMWORKINGPATH
+hostname > ./nodefile
+hostname > ./loghostfile
+hostname > ./hostfile
+SINGULARPATH=\"$PFD_INSTALL_DIR/LIB\"  $SINGULAR_INSTALL_DIR/bin/Singular SINGULARSCRIPT
+"
+ScriptSingularNoMonitor="LIB \"pfd_gspc.lib\";
+configToken gspcconfig = configure_gspc();
+gspcconfig.options.tempdir = \"tempdir\";
+gspcconfig.options.nodefile = \"hostfile\";
+gspcconfig.options.procspernode = 12;
+gspcconfig.options.loghostfile = \"loghostfile\";
+configToken pfdconfig = configure_pfd();
+pfdconfig.options.inputdir = \"listnumden_inputs\";
+pfdconfig.options.filename = \"listnumden_input\";
+pfdconfig.options.suffix = \"txt\";
+pfdconfig.options.parallelism = \"PARALLELISM\";
+pfdconfig.options.algorithm = \"ALGORITHM\";
+pfdconfig.options.outputformat = \"OUTPUTFORMAT\";
+pfdconfig.options.outputdir = \"outputs\";
+ring r=0,VARS,rp;
+list listofentries = LISTOFENTIRES;
+parallel_pfd( listofentries, gspcconfig, pfdconfig);
+exit;
+"
 
 
 
@@ -234,16 +270,49 @@ parallel_pfd( listofentries, gspcconfig, pfdconfig);"
 
 
 
+progressString="
+workingPath=DirectoryName[$InputFileName]
+If[StringSplit[workingPath,\"\"][[-1]]=!=\"/\",workingPath=workingPath<>\"/\"]
+inputs=FileNameSplit[#][[-1]]&/@FileNames[All,workingPath<>\"inputs/\"]
+existQs=FileExistsQ[workingPath<>\"outputs/result_listnumden_\"<>#]&/@inputs
+ni=inputs//Length
+nf=Count[existQs,True]
+Print[\"Total task number: \",ni]
+Print[\"Finished number: \",nf]
+Print[\"Progress: \",N[1000*nf/ni,0]*0.1,\"%\"]
+"
+
+
+
+
+
+
+(*workingPath=DirectoryName[$InputFileName]
+If[StringSplit[workingPath,""][[-1]]=!="/",workingPath=workingPath<>"/"]
+inputs=FileNameSplit[#][[-1]]&/@FileNames[All,workingPath<>"inputs/"]
+existQs=FileExistsQ[workingPath<>"outputs/result_listnumden_"<>#]&/@inputs
+ni=inputs//Length
+nf=Count[existQs,True]
+Print["Total task number: ",ni]
+Print["Finished number: ",nf]
+Print["Progress: ",N[1000*nf/ni,0]*0.1,"%"]*)
+
+
 Options[PfdParallelPrepareInput]={
 Parallelism->"waitAll",
 Algorithm->"Leinartas",
-OutputFormat->"cleartext"
+OutputFormat->"cleartext",
+TurnOnMonitor->True,
+ConvertToStandardVars->True
 (*,
 DeleteTempFiles\[Rule]False*)
 
 }
 PfdParallelPrepareInput[input_,OptionsPattern[]]:=Module[
-{dimensions,mode,timer=AbsoluteTime[],workingFolder,i,j,localScriptRun,localScriptSingular,tempHead\:ff0cresult,entriesString,reportString},
+{dimensions,mode,timer=AbsoluteTime[],workingFolder,i,j,localScriptRun,localScriptSingular,
+tempHead,result,entriesString,reportString,scriptRun,scriptSingular,readString,
+inputX,vars,var2x,x2var,xs
+},
 	Print["Checking inputs..."];
 	If[Head[input]=!=List,Print["PfdParallelM`PfdParallel: Unknown data structure, it should be a list or a matrix."];Return[$Failed]];
 	dimensions=Dimensions[input];
@@ -262,17 +331,32 @@ PfdParallelPrepareInput[input_,OptionsPattern[]]:=Module[
 	Print["mode=",mode];
 	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
 	timer=AbsoluteTime[];
+	Print["Converting to standard variables..."];
+	vars=Variables[input];
+	If[OptionValue[ConvertToStandardVars],
+		xs=Table[ToExpression["x"<>ToString[i]],{i,Length[vars]}];
+		var2x=Table[vars[[i]]->xs[[i]],{i,Length[vars]}];
+		x2var=Reverse/@var2x;
+		inputX=input/.var2x;
+	,
+		Print["ConvertToStandardVars is False, skip this step."];
+		inputX=input;
+		x2var={};
+		xs=vars;
+	];
+	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
+	timer=AbsoluteTime[];
 	Print["Exporting input files..."];
 	workingFolder=AutoCreatePfdParallelMSubFolder[];
 	Run["mkdir -p "<>workingFolder<>"/inputs/"];
 	Switch[mode,
 	"list",
 		For[i=1,i<=dimensions[[1]],i++,
-			Export[workingFolder<>"/inputs/input_1_"<>ToString[i]<>".txt",input[[i]]//InputForm//ToString]
+			Export[workingFolder<>"/inputs/input_1_"<>ToString[i]<>".txt",inputX[[i]]//InputForm//ToString]
 		],
 	"matrix",
 		For[i=1,i<=dimensions[[1]],i++,For[j=1,j<=dimensions[[2]],j++,
-			Export[workingFolder<>"/inputs/input_"<>ToString[i]<>"_"<>ToString[j]<>".txt",input[[i,j]]//InputForm//ToString]
+			Export[workingFolder<>"/inputs/input_"<>ToString[i]<>"_"<>ToString[j]<>".txt",inputX[[i,j]]//InputForm//ToString]
 		]],
 	_,
 		Print["Unkown mode."];
@@ -283,9 +367,18 @@ PfdParallelPrepareInput[input_,OptionsPattern[]]:=Module[
 	Print["Converting input files into listnumden form..."];
 	ParallelConvertAndSave[workingFolder<>"/inputs/",workingFolder<>"/listnumden_inputs/"];
 	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
+	
+	If[OptionValue[TurnOnMonitor],
+		scriptRun=ScriptRun;
+		scriptSingular=ScriptSingular;
+	,
+		scriptRun=ScriptRunNoMonitor;
+		scriptSingular=ScriptSingularNoMonitor;
+	];
+	
 	timer=AbsoluteTime[];
 	Print["Creating running scripts"];
-	localScriptRun=StringReplace[ScriptRun,{
+	localScriptRun=StringReplace[scriptRun,{
 		"PFDPARALLELPATH"->PfdParallelM`PfdParallelPath,
 		"SINGULARSCRIPT"->workingFolder<>"/pfdparallel.sing",
 		"PFDPARALLELMWORKINGPATH"->workingFolder
@@ -303,32 +396,39 @@ PfdParallelPrepareInput[input_,OptionsPattern[]]:=Module[
 		Print["Unkown mode."];
 		Return[$Failed]
 	];
-	localScriptSingular=StringReplace[ScriptSingular,{
+	localScriptSingular=StringReplace[scriptSingular,{
 		"PARALLELISM"->OptionValue[Parallelism],
 		"ALGORITHM"->OptionValue[Algorithm],
 		"OUTPUTFORMAT"->OptionValue[OutputFormat],
-		"VARS"->StringReplace[ToString[InputForm[Variables[input]]],{"{"->"(","}"->")"}],
+		"VARS"->StringReplace[ToString[InputForm[xs]],{"{"->"(","}"->")"}],
 		"LISTOFENTIRES"->entriesString
 	}];
 	Export[workingFolder<>"/run.sh",localScriptRun,"Text"];
 	Export[workingFolder<>"/pfdparallel.sing",localScriptSingular,"Text"];
 	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
 	timer=AbsoluteTime[];
-	Print["Running pfd-parallel... If there is a monitor, please close it after finished."];
+	(*Print["Running pfd-parallel... If there is a monitor, please close it after finished."];*)
 	Run["mkdir -p "<>workingFolder<>"/tempdir/"];
 	Run["mkdir -p "<>workingFolder<>"/outputs/"];
 	Run["chmod +x "<>workingFolder<>"/run.sh"];
-	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
+	OpenWrite[workingFolder<>"/report_progress.wl"];
+	WriteString[workingFolder<>"/report_progress.wl",progressString];
+	Close[workingFolder<>"/report_progress.wl"];
+	Export[workingFolder<>"/x2var.txt",x2var//InputForm//ToString,"Text"];
+	(*Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];*)
 	Print["--------------------------------------"];
+	readString="PfdParallelReadOutput[\""<>workingFolder<>"\",\""<>mode<>"\","<>ToString[InputForm[dimensions]]<>"];";
 	reportString="Preparation finished. To get the result, do the following:
 1. Run the following command in a terminal:\n"<>
-workingFolder<>"/run.sh\n"<>
+workingFolder<>"run.sh\n"<>
 "2. Wait until the above computation finished. Then, click \"x\" to close the monitor.
 3. Run the following commad here (in the Mathematica UI):\n"<>
-"yourResultName=PfdParallelReadOutput[\""<>workingFolder<>"\",\""<>mode<>"\","<>ToString[InputForm[dimensions]]<>"];";
-reportString
+"yourResultName="<>readString<>"\nThis command is also stored in: \n\t"<>workingFolder<>"read_result.m";
+;
+	Export[workingFolder<>"/read_result.m",readString,"Text"];
+	reportString
 ]
-PfdParallelReadOutput[workingFolder_,mode_,dimensions_]:=Module[{timer,result,i,j},
+PfdParallelReadOutput[workingFolder_,mode_,dimensions_]:=Module[{timer,result,i,j,x2var},
 	timer=AbsoluteTime[];
 	Print["Reading outputs in "<>workingFolder<>"..."];
 	Switch[mode,
@@ -347,6 +447,11 @@ PfdParallelReadOutput[workingFolder_,mode_,dimensions_]:=Module[{timer,result,i,
 		Return[$Failed]
 	];
 	Print["\tDone. Time used: ",Round[AbsoluteTime[]-timer]," s."];
-	result
+	x2var=Get[workingFolder<>"/x2var.txt"];
+	result/.x2var
 	
 ]
+
+
+
+
