@@ -426,7 +426,7 @@ workingFolder<>"run.sh\n"<>
 "yourResultName="<>readString<>"\nThis command is also stored in: \n\t"<>workingFolder<>"read_result.m";
 ;
 	Export[workingFolder<>"/read_result.m",readString,"Text"];
-	reportString
+	reportString//Print;
 ]
 PfdParallelReadOutput[workingFolder_,mode_,dimensions_]:=Module[{timer,result,i,j,x2var},
 	timer=AbsoluteTime[];
