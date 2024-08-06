@@ -127,14 +127,22 @@ Run["ps -ef | grep pfd-parallel | grep -v grep | awk '{print \"kill -9 \"$2}' | 
 (*listnumden converter*)
 
 
-ListNumdenConvert[input_]:=Module[{termList,listNumDen},
+NumbersString=ToString/@Range[0,9]
+
+
+ListNumdenConvert[input_]:=Module[{termList,listNumDen,result},
 	If[Head[input]===Plus,
 		termList=List@@input
 	,
 		termList={input}
 	];
 	listNumDen={Numerator[#],Denominator[#]}&/@termList;
-	StringReplace[ToString[InputForm[listNumDen]],{"{"->"list(","}"->")"}]
+	result=StringReplace[ToString[InputForm[listNumDen]],{"{"->"list(","}"->")"}];
+	(*fixing the x^2/3 problem*)
+	result=StringReplace[result,
+		"^"~~Shortest[x__]~~"/":>If[Complement[StringSplit[x,""]//Union,NumbersString]==={},"^("<>x<>")/","^"<>x<>"/"]
+	];
+	result
 
 ]
 
